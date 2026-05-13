@@ -1,0 +1,107 @@
+# A data/AI engineer's portfolio playbook for 2026
+
+**The strongest 2026 data/AI portfolios do three things:** they ship a RAG chatbot grounded on the owner's real projects, embed one signature interactive artifact (an animated ETL pipeline or live CVE/ML demo), and front-load metric-led case studies that a recruiter can scan in ten seconds. Everything else — the templates, the 3D heroes, the skill radars — is table-stakes polish. Your stack (Data Eng + AI + Cyber + React fluency + TransLink/Wisr credibility) is almost perfectly aligned with what differentiates at the top end. Below is a concrete build plan: where to host, what to build, which libraries, and which portfolios to steal ideas from.
+
+## Hosting: Vercel for speed, Cloudflare Pages for "truly free"
+
+Pick based on one question — **will your portfolio run an AI chatbot backend?** If yes, you need serverless functions, which kills GitHub Pages on its own.
+
+| Platform | Best use | Killer feature | Deal-breaker |
+|---|---|---|---|
+| **Vercel Hobby** | Next.js + AI chatbot, fast DX | Native Next.js App Router, `ai` SDK, Edge Functions, 1M invocations/mo | Hobby plan formally **prohibits commercial use**; jumps to $20/seat if you monetize |
+| **Cloudflare Pages + Workers** | Free forever, no commercial restrictions | **Unlimited bandwidth**, ~0ms edge cold start, Workers AI + Vectorize built-in for RAG | Slightly rougher Next.js support (needs `@cloudflare/next-on-pages`); fewer DX niceties |
+| **GitHub Pages** | Pure static, zero config, `yourname.github.io` branding | Free forever, free HTTPS, custom domain | Static only — **cannot host the chatbot backend**; SPA routing gotcha (404 on refresh) |
+| **Netlify** | Forms + plugins | Free Netlify Forms (re-freed April 2026) | Credit-based free tier (300 credits/mo ≈ 20 builds) is a downgrade; sites pause when out |
+
+**Recommendation:** Deploy the static frontend to Vercel (best DX) or Cloudflare Pages (best free tier), and host the chatbot endpoint as a Route Handler (Vercel) or Worker (Cloudflare). If you want the `.github.io` URL for the credibility signal, front it with a custom subdomain and call an external Worker for the AI API — this gives you GitHub Pages branding without losing server-side features.
+
+## The three signature features that will place you in the top 1%
+
+Most data-engineer portfolios fail on the same thing: they list tools instead of demonstrating them. These three features turn the portfolio itself into proof of work, and every one is achievable on free tier.
+
+**1. "Ask my career anything" — a RAG chatbot grounded in your resume and projects.** This is the single highest-leverage feature for an AI engineer portfolio in 2026. The clearest production example is **Cameron Rye's "Ask"** at rye.dev — built on Cloudflare Workers AI + Vectorize + Llama 3.3 + BGE embeddings, streams under 200ms, and crucially frames itself as a *third-person expert system about his work*, not a clone of him (which avoids the uncanny-valley problem). Implementation stack: Vercel AI SDK `useChat` hook on the frontend, **Groq's free `llama-3.3-70b-versatile`** or Gemini 2.0 Flash free tier for inference, **Upstash Vector** or Supabase pgvector for the store, OpenAI `text-embedding-3-small` or Gemini `text-embedding-004` for embeddings. Rye's full writeup is a ready-made blueprint.
+
+**2. An interactive React Flow diagram of a real pipeline you built.** Take your TransLink GTFS ETL or Wisr threat-intel ingestion and render it as a clickable, zoomable node graph using **@xyflow/react** (36k stars, the dominant node-UI library). Each node = an Azure service with the official Azure icon; click reveals row counts, latency, code snippet, or a mini architecture explainer. For the "data packet flowing through the edge" effect, use the `AnimatedNodeEdge` pattern with CSS `offset-path` rather than React Flow's built-in `animated: true` (which tanks CPU past 50 edges). Supplement with **Mermaid.js** diagrams committed to your MDX project pages — they're version-controlled and GitHub renders them natively.
+
+**3. A live Streamlit or Gradio demo embedded on a project page.** Host on **Hugging Face Spaces** (free CPU tier) using the `<gradio-app>` web component, which is faster than an iframe. On-brand demos for your profile: a **CVE-to-CVSS-vector classifier** (pastes a vulnerability description, predicts CVSS base score + reasoning), a **transit demand forecaster** on GTFS data, or a **log anomaly detector** that flags suspicious lines. One live demo beats ten screenshots; a recruiter can click, *try it*, and immediately have something concrete to tell the hiring manager.
+
+## Section-by-section blueprint with data-specific twists
+
+The structural rule is **layered disclosure in a single page**: satisfy the recruiter's 10-second scan in the top 600px, reward the hiring manager's 2-3 minute dig below. Research from InterviewPal (2025) puts recruiter first-pass at 11.2 seconds and median review at 1 minute 34 seconds — design for both without a cringe-worthy "recruiter mode" toggle.
+
+**Hero (the 10-second test).** Your name as H1, a sharp role line (*"Data & AI Engineer — I ship Azure lakehouses and RAG systems for security-critical data"* beats any passion statement), three credibility chips (*MS Data Analytics Eng • Ex-TransLink, Wisr AI • Vancouver/Remote*), primary CTAs to Projects and Resume PDF, and a muted strip of prior-employer logos. If you want a signature visual, a **React Three Fiber** particle cloud drifting through a tube (data-lake metaphor) or a rotating embedding space is on-brand for AI engineers without being gimmicky — just lazy-load it behind `React.lazy` because R3F adds ~200KB gzipped. **Magic UI's `AnimatedBeam` and `OrbitingCircles`** are a lighter alternative and pair Azure, Spark, LangChain logos into an animated constellation.
+
+**Impact strip.** One row, three to four numbers: *"2B+ transit events processed/day · $180K/yr Azure cost optimized · 12 RAG features in prod · 4 technical articles."* This single row does more work than a skills section — it's the recruiter's entire decision signal.
+
+**Featured projects (three, tag-filterable).** Research from The Data Forge (April 2026) is unambiguous: **if a project doesn't have an architecture diagram, it doesn't exist to a reviewer.** Each card needs a one-line problem statement, tech pills, a quantified impact metric, and a reading-time estimate. Behind each card, a project page follows the consensus format: *Brief Overview box → Context → Approach with rejected alternatives → Architecture diagram → What broke and how you handled it → Scale/cost → Impact → Learnings*. The "what broke" section is the single strongest senior-signal — it separates tutorial-copiers from engineers who've shipped.
+
+**Skills — treat them as data, not decoration.** A **Recharts `RadarChart`** of your category proficiencies (Data Eng, ML/AI, Cloud, Security, Frontend) is the honest version of the skills section. Pair it with a **visx `HeatmapRect`** where rows are skills, columns are years, and color intensity shows usage — this is a uniquely data-engineer-flavored take on the usual skill cloud. Avoid progress bars ("I'm 87% at Python" is nobody's idea of credible). Borrow Caio Furlan's **D3 tech-radar** implementation from `caiokf/dev-profile` if you want the ThoughtWorks-style Adopt/Trial/Assess/Hold rings.
+
+**Experience timeline.** Use **react-chrono** or a custom vertical timeline with GSAP ScrollTrigger pinning. Each role card should expand on hover to reveal tech stack plus a miniature architecture diagram — TransLink card surfaces Azure Data Factory + Synapse + 4M daily smart-card taps; Wisr card surfaces LangChain RAG over 200+ CVE feeds. Company logos as recognizable anchors.
+
+**Live GitHub integration.** Combine **react-github-calendar** (contribution heatmap), **anuraghazra/github-readme-stats** (language donut), and **skillicons.dev** for the tech strip. For the wow moment, port the **3D contribution skyline** from the napjose.ph tutorial into React Three Fiber — it's the GitHub Skyline aesthetic rendered in-browser.
+
+**Contact.** A terminal-style form (references: `satnaing/terminal-portfolio` with six themes, or `aisurf3r/terminal-portfolio` with autocomplete) is a well-worn pattern that still lands well for technical audiences. Include a Calendly embed, an email address, and GitHub/LinkedIn.
+
+## The 2026 visualization and animation stack
+
+| Purpose | Library | Why |
+|---|---|---|
+| Node/edge diagrams, pipelines | **@xyflow/react** (React Flow) | 36k stars; the standard. Animate edges with `offset-path` not `animated:true` |
+| Text-based diagrams in MDX | **Mermaid.js** | 76k stars; `architecture-beta` syntax now supports 200k+ Iconify icons including Azure |
+| Charts / KPIs | **Recharts** + **Tremor** | Recharts for radars/bars; Tremor (tremor.so) gives dashboard-grade KPI tiles out of the box |
+| Low-level custom viz | **visx** (Airbnb) or **Nivo** | visx for heatmaps/xycharts; Nivo for prettier defaults and SSR |
+| 3D hero moments | **@react-three/fiber** + **drei** | Declarative Three.js; code-split it (heavy bundle) |
+| Large geospatial data | **deck.gl** / **kepler.gl** | Millions of points on WebGL — perfect for a TransLink ridership heatmap over Vancouver |
+| Motion/scroll | **Framer Motion (Motion)** + **GSAP ScrollTrigger** | Motion for declarative; GSAP for scroll-choreographed cinematic sequences |
+| Flashy UI accents | **Magic UI**, **Aceternity UI**, **React Bits** | Copy-paste animated components (NumberTicker, Spotlight, AnimatedBeam, OrbitingCircles) |
+| Foundation | **shadcn/ui + Tailwind v4 + Next.js 15** | The 2026 default; owns the code, fully customizable |
+
+**For your cybersecurity angle specifically:** a **MITRE ATT&CK matrix** rendered from the official STIX JSON (available at `mitre/cti`) with cells colored by techniques you've built detections for — implementable as a CSS grid with React on top, no specialized library needed. Pair with an **EPSS × CVSS scatter plot** (Nivo ScatterPlot: x=severity, y=exploit probability, bubble=age) pulling live from the NVD and FIRST APIs. Reference dashboards worth studying: `viswsd/cve-threat-dashboard` (forkable, uses Chart.js radar for CVSS breakdown) and `cve.icu` (polished public design). For threat-intel graphs, **Cytoscape.js** handles STIX relationships better than React Flow at scale.
+
+## Creative AI integrations beyond the chatbot
+
+The RAG chatbot is the headline, but 2026 has opened up additional patterns worth stealing. **Persona-aware content** — a small toggle that reruns your project summaries through an LLM tuned to "recruiter" vs "engineer" vs "curious visitor" tone — directly showcases prompt engineering. **Semantic project search** using **Transformers.js** lets you run MiniLM embeddings entirely in the browser (zero backend cost) so visitors can query "projects with Azure + streaming + cost optimization" and get ranked results. **A visible multi-agent demo** using LangGraph or CrewAI, with the agent graph rendered live in React Flow as they execute, directly dogfoods your Wisr AI experience. The most gimmicky but memorable option is **voice navigation** via Web Speech API + LLM function calling ("show me your cybersecurity projects" scrolls/filters the page) — niche but people tweet about it.
+
+**Hosting the AI backend for free** is a solved problem in 2026: **Groq** (free tier, sub-second 70B inference), **Google Gemini 2.0 Flash** (generous free tier), **Cloudflare Workers AI** (edge-deployed, fits the no-cost Cloudflare Pages story), and **Upstash Vector** for the store. Vercel's AI template gallery (`vercel.com/templates/ai`) has drop-in Groq and Gemini chatbot starters you can fork in minutes.
+
+## Templates to fork and portfolios to steal from
+
+Don't start blank. The three starters that will save you 40+ hours:
+
+1. **`dillionverma/portfolio`** (the Magic UI creator's template) — Next.js 14 + shadcn/ui + Magic UI + Framer Motion; single config file; probably the most-forked modern dev portfolio of 2024-2026.
+2. **`medevs/smart-portfolio`** — Next.js 15 with **bento grid + RAG chatbot + terminal aesthetic** already wired up. Closest to your end-state.
+3. **`manuelernestog/astrofy`** (Astro + Tailwind + DaisyUI) if you want the content-heavy, faster-loading, essay-forward variant. Astro ships zero JS by default and deploys perfectly to GitHub Pages or Cloudflare Pages.
+
+**Portfolios to study, ranked for your specific profile:**
+
+- **rye.dev (Cameron Rye)** — gold standard for RAG chatbot + minimal aesthetic + engineer credibility; his technical writeup at `rye.dev/blog/building-ask-rag-portfolio-chatbot/` is a full blueprint including prompt-injection defense.
+- **hluebbering.github.io (Hannah Luebbering)** — Awwwards-nominated data scientist portfolio; the closest match to your "clean minimal + bold data-viz accents" aesthetic.
+- **jxnl.co (Jason Liu)** and **huyenchip.com (Chip Huyen)** — proof that docs-style, content-first, radically minimal sites win when the substance is strong. Worth borrowing the information hierarchy even if not the aesthetic.
+- **sravyakganti.github.io** — how to write metric-led, impact-first DE project cards as a new-ish grad.
+- **martyc-137.github.io/Data-Engineering** — how to signal engineering rigor via CI badges (Ruff, SQLFluff) on a plain GitHub Pages site.
+- **brittanychiang.com** and **leerob.io** — the widely-cloned templates; useful as design references even if you don't fork them directly.
+
+## What will hurt you — avoid these patterns
+
+Research from KDnuggets (September 2025), The Data Forge (April 2026), and DataExpert.io converges on the same failure modes, and most data portfolios hit at least three of them. **Tutorial copies with the serial numbers filed off** — Titanic, Iris, verbatim Data Engineering Zoomcamp pipelines — are instantly recognizable to any reviewer and signal you haven't shipped anything of your own. **Notebooks without business context** ("here's a model with 94% accuracy") fail the "so what?" test. **Tool obsession** — 30 skill bubbles with progress bars — signals desperation, not breadth; pick 5-7 you'd happily be interviewed on. **No architecture diagram** on a project page makes it invisible to technical reviewers. **No failure-mode discussion** ("when the API rate-limited us we…") makes projects feel academic. **Fake testimonials** ("Amazing engineer! — Sarah, PM") are worse than none. **Dead GitHub repos** with no README and a last-commit date two years out undo the narrative your portfolio is building.
+
+On performance: **don't lazy-load above-the-fold content** — web.dev data shows lazy-loaded LCP elements actually worsen Core Web Vitals (median LCP 3,546ms vs 2,922ms). Hero images, hero charts, the first project card should be eager. Lazy-load heavy PowerBI embeds, R3F canvases, and live iframes behind IntersectionObserver or `React.lazy`. Keep the hero route JS bundle under 150KB gzipped and aim for LCP under 1.5 seconds — recruiters on office wifi bail on slow sites.
+
+## SEO: own your name on Google in four weeks
+
+Set **title tag** to `"[Your Name] — Data & AI Engineer | Azure, RAG, ETL"` (full name + specialty). Add **JSON-LD `Person` schema** in the root layout so Google recognizes you as an entity. Generate **per-project Open Graph images** with `@vercel/og` — proper OG images lift link engagement 38–291% (RankingBySEO data) and matter enormously when recruiters share your link in Slack. Submit the sitemap to Google Search Console and request indexing. Link to the site from your LinkedIn "Website" field, GitHub profile README, and Medium/Dev.to bios. Write two or three technical articles on Medium linking back — LinkedIn *articles* (not posts) also get indexed and carry meaningful link authority. Within four weeks `yourname.io` typically outranks LinkedIn for your name.
+
+## Bottom line: a concrete build order
+
+For your specific profile, the highest-leverage one-month build is:
+
+**Week 1** — Fork `dillionverma/portfolio`, wire up Next.js 15 + Tailwind + shadcn/ui on Vercel. Write three project case studies (one Azure ETL flagship from TransLink, one RAG/LLM flagship from Wisr, one cybersecurity-specific CVE/CVSS demo) with mandatory architecture diagrams in Mermaid. Add the impact strip, logos, and hero.
+
+**Week 2** — Build the React Flow interactive pipeline diagram for the TransLink project. Add Recharts radar and visx heatmap for skills. Integrate `react-github-calendar` + `github-readme-stats`.
+
+**Week 3** — Ship the RAG chatbot: Vercel AI SDK + Groq free tier + Upstash Vector, grounded on your resume PDF and project write-ups, with Cameron Rye's "third-person expert system" prompt pattern. Host a Gradio CVE classifier on Hugging Face Spaces and embed it via `<gradio-app>`.
+
+**Week 4** — OG images, JSON-LD schema, Google Search Console, Plausible or Vercel Analytics, write one Medium article on building the chatbot (which doubles as backlinks and a portfolio artifact itself).
+
+The result — minimal aesthetic, bold data-viz accents, one signature interactive artifact per technical domain, and a working LLM feature that *demonstrates* the RAG/vector/LangChain skills instead of just listing them — will sit comfortably in the top 1% of data/AI engineer portfolios in 2026, while running entirely on free tiers.
