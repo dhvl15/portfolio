@@ -37,7 +37,7 @@ function ResumeModal({ isOpen, onClose }) {
               <span className="text-sm font-medium text-text-muted">Resume — Dhaval Jariwala</span>
               <div className="flex items-center gap-3">
                 <a
-                  href="/Resume.pdf"
+                  href={`${import.meta.env.BASE_URL}Resume.pdf`}
                   download
                   className="px-4 py-1.5 text-sm bg-primary hover:bg-primary-hover text-white rounded-md transition-colors"
                 >
@@ -58,7 +58,7 @@ function ResumeModal({ isOpen, onClose }) {
             {/* Clean PDF canvas preview */}
             <div className="flex-1 overflow-y-auto bg-neutral-900 flex flex-col items-center py-6 gap-6">
               <Document
-                file="/Resume.pdf"
+                file={`${import.meta.env.BASE_URL}Resume.pdf`}
                 onLoadSuccess={({ numPages }) => setNumPages(numPages)}
                 loading={<p className="text-text-muted text-sm">Loading resume...</p>}
               >
@@ -245,7 +245,7 @@ function App() {
               transition={{ duration: 0.6 }}
             >
               <div className="w-32 h-32 rounded-full overflow-hidden ring-4 ring-primary/50 ring-offset-4 ring-offset-background">
-                <img src="/headshot.jpeg" alt="Dhaval Jariwala" className="w-full h-full object-cover" />
+                <img src={`${import.meta.env.BASE_URL}headshot.jpeg`} alt="Dhaval Jariwala" className="w-full h-full object-cover" />
               </div>
             </motion.div>
 
