@@ -1,7 +1,8 @@
-import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useState, useEffect, useRef } from 'react'
+import { motion, AnimatePresence, useInView } from 'framer-motion'
 import { GitHubCalendar } from 'react-github-calendar'
 import { Document, Page, pdfjs } from 'react-pdf'
+import { RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer } from 'recharts'
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
 import './index.css'
@@ -80,6 +81,47 @@ function ResumeModal({ isOpen, onClose }) {
   )
 }
 
+// NumberTicker — counts up on scroll into view
+function NumberTicker({ value, suffix = '', prefix = '' }) {
+  const ref = useRef(null)
+  const isInView = useInView(ref, { once: true })
+  const [count, setCount] = useState(0)
+
+  useEffect(() => {
+    if (!isInView) return
+    const num = parseFloat(value)
+    if (isNaN(num)) { setCount(value); return }
+    const duration = 1500
+    const steps = 40
+    const increment = num / steps
+    let current = 0
+    const timer = setInterval(() => {
+      current += increment
+      if (current >= num) { setCount(num); clearInterval(timer) }
+      else setCount(Math.floor(current))
+    }, duration / steps)
+    return () => clearInterval(timer)
+  }, [isInView, value])
+
+  return (
+    <span ref={ref}>
+      {prefix}{typeof count === 'number' ? count : value}{suffix}
+    </span>
+  )
+}
+
+// Radar chart data for skills
+const RADAR_DATA = [
+  { skill: 'Data Eng', value: 90 },
+  { skill: 'AI / ML', value: 85 },
+  { skill: 'Cloud', value: 80 },
+  { skill: 'Security', value: 70 },
+  { skill: 'Frontend', value: 55 },
+]
+
+// Project tags for filtering
+const PROJECT_TAGS = ['All', 'Data Engineering', 'AI/ML', 'Security']
+
 const fadeIn = {
   hidden: { opacity: 0, y: 30 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' } },
@@ -100,9 +142,13 @@ function Section({ children, className = '', id }) {
   )
 }
 
-function Pill({ children }) {
+function Pill({ children, color = 'primary' }) {
+  const styles = {
+    primary: 'bg-primary/10 border-primary/20 text-primary',
+    accent: 'bg-accent/10 border-accent/20 text-accent',
+  }
   return (
-    <span className="px-2.5 py-1 text-xs rounded-full bg-primary/10 border border-primary/20 text-primary">
+    <span className={`px-2.5 py-1 text-xs rounded-full border ${styles[color] || styles.primary}`}>
       {children}
     </span>
   )
@@ -114,12 +160,32 @@ const NAV_LINKS = [
   { href: '#experience', label: 'Experience' },
   { href: '#projects', label: 'Projects' },
   { href: '#education', label: 'Education' },
+  { href: '#conferences', label: 'Conferences' },
   { href: '#contact', label: 'Contact' },
 ]
 
 function App() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [resumeOpen, setResumeOpen] = useState(false)
+  const [activeSection, setActiveSection] = useState('')
+  const [projectFilter, setProjectFilter] = useState('All')
+  const [expandedExp, setExpandedExp] = useState(null)
+
+  // IntersectionObserver for active nav highlight
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setActiveSection('#' + entry.target.id)
+          }
+        })
+      },
+      { rootMargin: '-50% 0px -50% 0px' }
+    )
+    document.querySelectorAll('section[id]').forEach((el) => observer.observe(el))
+    return () => observer.disconnect()
+  }, [])
 
   return (
     <div className="min-h-screen bg-background text-text">
@@ -132,7 +198,7 @@ function App() {
             {/* Desktop nav */}
             <div className="hidden md:flex gap-6 text-sm">
               {NAV_LINKS.map(l => (
-                <a key={l.href} href={l.href} className="text-text-muted hover:text-primary transition-colors">{l.label}</a>
+                <a key={l.href} href={l.href} className={`transition-colors ${activeSection === l.href ? 'text-primary' : 'text-text-muted hover:text-primary'}`}>{l.label}</a>
               ))}
             </div>
 
@@ -166,142 +232,125 @@ function App() {
         </div>
       </nav>
 
-      {/* ═══════════ HERO ═══════════ */}
-      <section className="min-h-screen flex items-center justify-center px-6 pt-20">
-        <div className="max-w-5xl mx-auto text-center">
-          {/* Headshot */}
+      {/* ═══════════ HERO + ABOUT (split) ═══════════ */}
+      <section id="about" className="bg-glow min-h-screen flex items-center px-6 pt-24 pb-12 overflow-hidden">
+        <div className="relative z-10 max-w-5xl mx-auto grid md:grid-cols-2 gap-12 md:gap-16 items-center">
+
+          {/* Left — Hero */}
+          <div>
+            <motion.div
+              className="mb-6"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.6 }}
+            >
+              <div className="w-32 h-32 rounded-full overflow-hidden ring-4 ring-primary/50 ring-offset-4 ring-offset-background">
+                <img src="/headshot.jpeg" alt="Dhaval Jariwala" className="w-full h-full object-cover" />
+              </div>
+            </motion.div>
+
+            <motion.h1
+              className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight mb-4 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent font-heading"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7 }}
+            >
+              Dhaval Jariwala
+            </motion.h1>
+
+            <motion.p
+              className="text-lg text-text-muted mb-5"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3, duration: 0.7 }}
+            >
+              I build the data infrastructure and AI systems that let organizations act on information, not just store it.
+            </motion.p>
+
+            {/* Credibility chips */}
+            <motion.div
+              className="flex flex-wrap gap-2 mb-6"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5, duration: 0.7 }}
+            >
+              <span className="px-3 py-1.5 text-sm rounded-full border border-primary/30 bg-primary/10 text-primary">MS Data Analytics Eng</span>
+              <span className="px-3 py-1.5 text-sm rounded-full border border-accent/30 bg-accent/10 text-accent">Wisr AI</span>
+              <span className="px-3 py-1.5 text-sm rounded-full border border-primary/30 bg-primary/10 text-primary">Ex-TransLink</span>
+              <span className="px-3 py-1.5 text-sm rounded-full border border-accent/30 bg-accent/10 text-accent">Vancouver, BC</span>
+            </motion.div>
+
+            {/* CTAs */}
+            <motion.div
+              className="flex flex-wrap items-center gap-3"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.7, duration: 0.7 }}
+            >
+              <a href="#projects" className="px-5 py-2.5 bg-primary hover:bg-primary-hover text-white font-medium rounded-lg transition-colors text-sm">
+                View Projects
+              </a>
+              <button onClick={() => setResumeOpen(true)} className="px-5 py-2.5 bg-surface border border-primary/30 rounded-lg hover:bg-surface2 hover:border-primary/50 text-primary transition-colors cursor-pointer text-sm">
+                Resume
+              </button>
+              <a href="https://github.com/dhvl15" target="_blank" rel="noopener noreferrer" aria-label="GitHub" className="p-2.5 rounded-full border border-border bg-surface hover:bg-surface2 hover:border-primary/50 transition-colors">
+                <svg className="w-4 h-4 text-text-muted" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" /></svg>
+              </a>
+              <a href="https://www.linkedin.com/in/dhavaljariwala15/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="p-2.5 rounded-full border border-border bg-surface hover:bg-surface2 hover:border-primary/50 transition-colors">
+                <svg className="w-4 h-4 text-text-muted" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" /></svg>
+              </a>
+            </motion.div>
+          </div>
+
+          {/* Right — About */}
           <motion.div
-            className="mb-8"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6 }}
+            initial={{ opacity: 0, x: 30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.4, duration: 0.8 }}
           >
-            <div className="w-36 h-36 mx-auto rounded-full overflow-hidden ring-4 ring-primary/50 ring-offset-4 ring-offset-background">
-              <img src="/headshot.jpeg" alt="Dhaval Jariwala" className="w-full h-full object-cover" />
+            <h2 className="text-2xl font-bold font-heading mb-6 text-text-muted">About Me</h2>
+            <div className="space-y-4 text-text-muted leading-relaxed text-sm">
+              <p>
+                I started as a software and mobile developer in India, building full-stack applications with Flutter and Flask. During my Master's in Data Analytics Engineering at Northeastern University Vancouver, I pivoted into data engineering — first at TransLink where I worked on Azure cloud migrations, ETL pipelines, and Power BI dashboards for one of Canada's largest transit authorities.
+              </p>
+              <p>
+                Now at Wisr AI, I sit at the intersection of data engineering, data science, and AI engineering. I build ETL pipelines for threat intelligence data, develop analytical models for vulnerability analysis, and design autonomous multi-agent AI systems for security testing.
+              </p>
+              <p>
+                I'm drawn to roles where I can combine engineering rigor with AI/ML innovation — building systems that don't just move data, but extract meaning and automate decisions from it.
+              </p>
             </div>
           </motion.div>
 
-          <motion.h1
-            className="text-5xl md:text-7xl font-extrabold tracking-tight mb-4 bg-gradient-to-r from-primary via-accent2 to-accent bg-clip-text text-transparent"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7 }}
-          >
-            Dhaval Jariwala
-          </motion.h1>
-
-          <motion.p
-            className="text-lg md:text-xl text-text-muted mb-6 max-w-2xl mx-auto"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3, duration: 0.7 }}
-          >
-            Data & AI Engineer — I build Azure lakehouses, threat-intel pipelines, and multi-agent AI systems
-          </motion.p>
-
-          {/* Credibility chips */}
-          <motion.div
-            className="flex flex-wrap justify-center gap-3 mb-8"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5, duration: 0.7 }}
-          >
-            <span className="px-3 py-1.5 text-sm rounded-full border border-primary/30 bg-primary/10 text-primary">MS Data Analytics Eng</span>
-            <span className="px-3 py-1.5 text-sm rounded-full border border-accent/30 bg-accent/10 text-accent">Wisr AI</span>
-            <span className="px-3 py-1.5 text-sm rounded-full border border-accent2/30 bg-accent2/10 text-accent2">Ex-TransLink</span>
-            <span className="px-3 py-1.5 text-sm rounded-full border border-accent3/30 bg-accent3/10 text-accent3">Vancouver, BC</span>
-          </motion.div>
-
-          {/* CTAs */}
-          <motion.div
-            className="flex flex-wrap justify-center gap-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.7, duration: 0.7 }}
-          >
-            <a href="#projects" className="px-6 py-3 bg-primary hover:bg-primary-hover text-white font-medium rounded-lg transition-colors">
-              View Projects
-            </a>
-            <button onClick={() => setResumeOpen(true)} className="px-6 py-3 bg-surface border border-accent3/30 rounded-lg hover:bg-surface2 hover:border-accent3/50 text-accent3 transition-colors cursor-pointer">
-              Resume
-            </button>
-            <a href="https://github.com/dhvl15" target="_blank" rel="noopener noreferrer" className="px-6 py-3 bg-surface border border-border rounded-lg hover:bg-surface2 hover:border-accent/50 transition-colors">
-              GitHub
-            </a>
-            <a href="https://www.linkedin.com/in/dhavaljariwala15/" target="_blank" rel="noopener noreferrer" className="px-6 py-3 bg-surface border border-border rounded-lg hover:bg-surface2 hover:border-accent2/50 transition-colors">
-              LinkedIn
-            </a>
-          </motion.div>
         </div>
       </section>
 
-      {/* ═══════════ IMPACT STRIP ═══════════ */}
-      <Section className="py-12 px-6 border-y border-border bg-surface">
-        <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-          <div>
-            <p className="text-3xl md:text-4xl font-bold text-primary">4 days</p>
-            <p className="text-sm text-text-muted mt-1">manual work eliminated per quarter</p>
-          </div>
-          <div>
-            <p className="text-3xl md:text-4xl font-bold text-accent">30%</p>
-            <p className="text-sm text-text-muted mt-1">DAU increase via UI revamp</p>
-          </div>
-          <div>
-            <p className="text-3xl md:text-4xl font-bold text-accent2">3</p>
-            <p className="text-sm text-text-muted mt-1">multi-agent AI systems built</p>
-          </div>
-          <div>
-            <p className="text-3xl md:text-4xl font-bold text-accent3">Azure</p>
-            <p className="text-sm text-text-muted mt-1">Data Lake migration at scale</p>
-          </div>
-        </div>
-      </Section>
-
-      {/* ═══════════ ABOUT ═══════════ */}
-      <Section id="about" className="py-20 px-6">
-        <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl font-bold mb-8">About Me</h2>
-          <div className="space-y-4 text-text-muted leading-relaxed max-w-3xl">
-            <p>
-              I started as a software and mobile developer in India, building full-stack applications with Flutter and Flask. During my Master's in Data Analytics Engineering at Northeastern University Vancouver, I pivoted into data engineering — first at TransLink where I worked on Azure cloud migrations, ETL pipelines, and Power BI dashboards for one of Canada's largest transit authorities.
-            </p>
-            <p>
-              Now at Wisr AI, I sit at the intersection of data engineering, data science, and AI engineering. I build ETL pipelines for threat intelligence data, develop analytical models for vulnerability analysis, and design autonomous multi-agent AI systems for security testing.
-            </p>
-            <p>
-              I'm drawn to roles where I can combine engineering rigor with AI/ML innovation — building systems that don't just move data, but extract meaning and automate decisions from it.
-            </p>
-          </div>
-        </div>
-      </Section>
 
       {/* ═══════════ SKILLS ═══════════ */}
-      <Section id="skills" className="py-20 px-6 bg-surface">
-        <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl font-bold mb-10">Technical Skills</h2>
+      <Section id="skills" className="bg-dots py-20 px-6 bg-surface overflow-hidden">
+        <div className="relative z-10 max-w-5xl mx-auto">
+          <h2 className="text-3xl font-bold mb-10 font-heading">Technical Skills</h2>
 
-          {/* Skill icon strips via skillicons.dev */}
-          <div className="space-y-8">
-            <div>
-              <h3 className="text-lg font-semibold mb-3 text-primary">Languages & Core</h3>
-              <img src="https://skillicons.dev/icons?i=python,r,java,dart&theme=dark" alt="Languages" className="h-12" />
+          {/* Radar (left) + icon strip (right) */}
+          <div className="grid md:grid-cols-2 items-center gap-10 mb-12">
+            <div className="w-72 h-72 mx-auto">
+              <ResponsiveContainer width="100%" height="100%">
+                <RadarChart data={RADAR_DATA} outerRadius="65%">
+                  <PolarGrid stroke="#2e2e3a" />
+                  <PolarAngleAxis dataKey="skill" tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                  <Radar dataKey="value" stroke="#6366f1" fill="#6366f1" fillOpacity={0.25} strokeWidth={2} />
+                </RadarChart>
+              </ResponsiveContainer>
             </div>
-            <div>
-              <h3 className="text-lg font-semibold mb-3 text-accent">Data & Cloud</h3>
-              <img src="https://skillicons.dev/icons?i=azure,aws,docker,kubernetes,postgres,mongodb,sqlite&theme=dark" alt="Data & Cloud" className="h-12" />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold mb-3 text-accent2">AI / ML</h3>
-              <img src="https://skillicons.dev/icons?i=pytorch,tensorflow,sklearn&theme=dark" alt="AI/ML" className="h-12" />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold mb-3 text-accent3">Web & Tools</h3>
-              <img src="https://skillicons.dev/icons?i=react,flask,flutter,firebase,git,github&theme=dark" alt="Web & Tools" className="h-12" />
+            <div className="space-y-3">
+              <img src="https://skillicons.dev/icons?i=python,r,pytorch,tensorflow,azure&theme=dark" alt="Languages & ML" className="h-12" />
+              <img src="https://skillicons.dev/icons?i=aws,docker,postgres,flask,firebase&theme=dark" alt="Cloud & Backend" className="h-12" />
+              <img src="https://skillicons.dev/icons?i=flutter,git,github,kubernetes&theme=dark" alt="Tools" className="h-12" />
             </div>
           </div>
 
           {/* Competency areas */}
-          <div className="mt-12 grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-2 gap-6">
             <div className="p-5 border border-primary/20 rounded-lg bg-surface2 hover:border-primary/50 transition-colors">
               <h4 className="font-semibold mb-3 text-primary">Data Engineering</h4>
               <div className="flex flex-wrap gap-2">
@@ -311,31 +360,19 @@ function App() {
             <div className="p-5 border border-accent/20 rounded-lg bg-surface2 hover:border-accent/50 transition-colors">
               <h4 className="font-semibold mb-3 text-accent">AI & Machine Learning</h4>
               <div className="flex flex-wrap gap-2">
-                <Pill>LLMs</Pill><Pill>Generative AI</Pill><Pill>AI Agents</Pill><Pill>PyTorch</Pill><Pill>Algorithms</Pill><Pill>LangChain</Pill><Pill>RAG</Pill><Pill>NLP</Pill><Pill>Multi-Agent Orchestration</Pill>
+                <Pill color="accent">LLMs</Pill><Pill color="accent">Generative AI</Pill><Pill color="accent">Openclaw</Pill><Pill color="accent">AI Agents</Pill><Pill color="accent">PyTorch</Pill><Pill color="accent">LangChain</Pill><Pill color="accent">RAG</Pill><Pill color="accent">NLP</Pill><Pill color="accent">Anthropic API</Pill><Pill color="accent">OpenAI API</Pill><Pill color="accent">Prompt Engineering</Pill>
               </div>
             </div>
-            <div className="p-5 border border-accent2/20 rounded-lg bg-surface2 hover:border-accent2/50 transition-colors">
-              <h4 className="font-semibold mb-3 text-accent2">Data Science & Analytics</h4>
+            <div className="p-5 border border-primary/20 rounded-lg bg-surface2 hover:border-primary/50 transition-colors">
+              <h4 className="font-semibold mb-3 text-primary">Data Science & Analytics</h4>
               <div className="flex flex-wrap gap-2">
                 <Pill>Regression Analysis</Pill><Pill>Data Clustering</Pill><Pill>Data Mining</Pill><Pill>Data Visualization</Pill><Pill>NumPy</Pill><Pill>Pandas</Pill><Pill>Streamlit</Pill><Pill>Power BI</Pill>
               </div>
             </div>
-            <div className="p-5 border border-accent3/20 rounded-lg bg-surface2 hover:border-accent3/50 transition-colors">
-              <h4 className="font-semibold mb-3 text-accent3">Cloud & Infrastructure</h4>
-              <div className="flex flex-wrap gap-2">
-                <Pill>Microsoft Azure</Pill><Pill>Azure Synapse Analytics</Pill><Pill>Docker</Pill><Pill>Kubernetes</Pill><Pill>CI/CD</Pill><Pill>AWS</Pill>
-              </div>
-            </div>
-            <div className="p-5 border border-primary/20 rounded-lg bg-surface2 hover:border-primary/50 transition-colors">
-              <h4 className="font-semibold mb-3 text-primary">Cybersecurity Data</h4>
-              <div className="flex flex-wrap gap-2">
-                <Pill>CVE/CWE/CPE</Pill><Pill>CVSS/EPSS</Pill><Pill>Threat Intelligence</Pill><Pill>Vulnerability Clustering</Pill><Pill>Pentesting Frameworks</Pill>
-              </div>
-            </div>
             <div className="p-5 border border-accent/20 rounded-lg bg-surface2 hover:border-accent/50 transition-colors">
-              <h4 className="font-semibold mb-3 text-accent">Core Strengths</h4>
+              <h4 className="font-semibold mb-3 text-accent">Cloud & Infrastructure</h4>
               <div className="flex flex-wrap gap-2">
-                <Pill>Data-Driven Decision Making</Pill><Pill>Detail-Oriented</Pill><Pill>SQL</Pill><Pill>Python</Pill><Pill>R Programming</Pill><Pill>Data Analysis</Pill>
+                <Pill color="accent">Microsoft Azure</Pill><Pill color="accent">Azure Synapse Analytics</Pill><Pill color="accent">Docker</Pill><Pill color="accent">Kubernetes</Pill><Pill color="accent">CI/CD</Pill><Pill color="accent">AWS</Pill>
               </div>
             </div>
           </div>
@@ -345,143 +382,173 @@ function App() {
       {/* ═══════════ EXPERIENCE ═══════════ */}
       <Section id="experience" className="py-20 px-6">
         <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl font-bold mb-8">Work Experience</h2>
+          <h2 className="text-3xl font-bold mb-8 font-heading">Work Experience</h2>
 
           <div className="space-y-8">
-            {/* Wisr AI */}
-            <div className="border-l-2 border-primary pl-6">
-              <div className="flex flex-wrap justify-between items-start mb-2">
-                <h3 className="text-xl font-semibold">Data Scientist, R&D</h3>
-                <span className="text-text-muted text-sm">Feb 2025 – Present</span>
+            {[
+              { id: 'wisr', color: 'border-primary', title: 'Data Scientist, R&D', date: 'Feb 2025 – Present', company: 'Wisr AI', loc: 'Vancouver, BC',
+                pills: ['Python', 'PostgreSQL', 'LangChain', 'Docker', 'OpenClaw', 'NLP'],
+                bullets: [
+                  'Designed ETL pipelines and backend data services connecting PostgreSQL to operationalize threat intelligence data',
+                  'Developed analytical models to identify CVE similarity patterns and analyze KEV conversion timelines',
+                  'Architected an autonomous multi-agent pentesting framework using OpenClaw with dynamic agent spawning',
+                ],
+                detail: 'Built a real-time CVE ingestion pipeline processing NVD, EPSS, and KEV feeds into a normalized PostgreSQL schema. The pentesting framework uses a coordinator agent that dynamically spawns specialist sub-agents (recon, exploit, report) inside Docker sandboxes with shared memory.',
+              },
+              { id: 'translink', color: 'border-accent', title: 'Data Engineer (CO-OP)', date: 'Jan 2024 – Sep 2024', company: 'TransLink', loc: 'Vancouver, BC',
+                pills: ['SSIS', 'Azure Synapse', 'Azure Data Lake', 'SQL Server', 'Power BI', 'DAX'],
+                bullets: [
+                  'Supported migrating on-prem SQL Server databases to Azure Data Lakes using SSIS and Azure Synapse',
+                  'Created interactive Power BI dashboards for real-time monitoring and analysis of device events',
+                  'Automated fare infraction dispute reporting — eliminated 4 days of manual entry per quarter',
+                ],
+                detail: 'Migrated 10TB+ of transit operational data from on-prem SQL Server to Azure Data Lake Gen2 via SSIS packages orchestrated through Azure Synapse pipelines. Power BI dashboards tracked Compass card tap events across 20k+ devices.',
+              },
+              { id: 'zaveri', color: 'border-primary', title: 'Flutter Developer', date: 'Jun 2021 – Jul 2022', company: 'Zaveribazaar.co.in', loc: 'Mumbai, India',
+                pills: ['Flutter', 'Firebase', 'TensorFlow', 'SQLite', 'REST APIs'],
+                bullets: [
+                  'Led UI revamp using Flutter — 30% increase in daily active users',
+                  'Integrated REST APIs to develop features such as Expense Manager and Recommendation System',
+                  'Deployed on Android and iOS with CI/CD pipeline using Codemagic',
+                ],
+                detail: 'Redesigned the jewellery marketplace app with a modern Material Design 3 UI. Built a TensorFlow Lite recommendation engine for product suggestions based on browsing patterns and purchase history.',
+              },
+              { id: 'bluepen', color: 'border-accent', title: 'Software Developer', date: 'Nov 2020 – May 2021', company: 'Bluepen.co.in', loc: 'Mumbai, India',
+                pills: ['Flutter', 'Flask', 'MongoDB', 'TensorFlow', 'Razorpay'],
+                bullets: [
+                  'End-to-end UI development with TensorFlow-powered real-time object detection',
+                  'Created microservice-based backend using Flask with MongoDB',
+                  'Integrated Razorpay payments gateway to enable a subscription model',
+                ],
+                detail: 'Built an EdTech platform with real-time AR-based object detection for interactive learning. Flask microservices handled user auth, content delivery, and payment processing via Razorpay webhooks.',
+              },
+            ].map((exp) => (
+              <div key={exp.id} className={`border-l-2 ${exp.color} pl-6`}>
+                <div
+                  className="cursor-pointer"
+                  onClick={() => setExpandedExp(expandedExp === exp.id ? null : exp.id)}
+                >
+                  <div className="flex flex-wrap justify-between items-start mb-2">
+                    <h3 className="text-xl font-semibold">{exp.title}</h3>
+                    <span className="text-text-muted text-sm">{exp.date}</span>
+                  </div>
+                  <p className="text-primary mb-1">{exp.company}</p>
+                  <p className="text-sm text-text-muted mb-3">{exp.loc}</p>
+                </div>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {exp.pills.map((p) => <Pill key={p}>{p}</Pill>)}
+                </div>
+                <ul className="space-y-2 text-text-muted text-sm">
+                  {exp.bullets.map((b, i) => <li key={i}>{b}</li>)}
+                </ul>
+                <AnimatePresence>
+                  {expandedExp === exp.id && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="overflow-hidden"
+                    >
+                      <p className="mt-4 text-sm text-text-muted bg-surface2 border border-border rounded-lg p-4 italic">
+                        {exp.detail}
+                      </p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                <button
+                  onClick={() => setExpandedExp(expandedExp === exp.id ? null : exp.id)}
+                  className="mt-2 text-xs text-primary hover:underline cursor-pointer"
+                >
+                  {expandedExp === exp.id ? 'Show less' : 'Show more'}
+                </button>
               </div>
-              <p className="text-primary mb-1">Wisr AI</p>
-              <p className="text-sm text-text-muted mb-3">Vancouver, BC</p>
-              <div className="flex flex-wrap gap-2 mb-3">
-                <Pill>Python</Pill><Pill>PostgreSQL</Pill><Pill>LangChain</Pill><Pill>Docker</Pill><Pill>OpenClaw</Pill><Pill>NLP</Pill>
-              </div>
-              <ul className="space-y-2 text-text-muted text-sm">
-                <li>Built ETL pipelines and backend data services connecting PostgreSQL to operationalize threat intelligence data</li>
-                <li>Built analytical models to identify CVE similarity patterns and analyze KEV conversion timelines</li>
-                <li>Designed and prototyped an autonomous multi-agent pentesting framework using OpenClaw</li>
-              </ul>
-            </div>
-
-            {/* TransLink */}
-            <div className="border-l-2 border-border pl-6">
-              <div className="flex flex-wrap justify-between items-start mb-2">
-                <h3 className="text-xl font-semibold">Data Engineer, CO-OP</h3>
-                <span className="text-text-muted text-sm">Jan 2024 – Sep 2024</span>
-              </div>
-              <p className="text-primary mb-1">TransLink</p>
-              <p className="text-sm text-text-muted mb-3">Vancouver, BC</p>
-              <div className="flex flex-wrap gap-2 mb-3">
-                <Pill>SSIS</Pill><Pill>Azure Synapse</Pill><Pill>Azure Data Lake</Pill><Pill>SQL Server</Pill><Pill>Power BI</Pill><Pill>DAX</Pill>
-              </div>
-              <ul className="space-y-2 text-text-muted text-sm">
-                <li>Supported migrating on-prem SQL Server databases to Azure Data Lakes using SSIS and Azure Synapse</li>
-                <li>Created interactive Power BI dashboards for real-time monitoring and analysis of device events</li>
-                <li>Automated fare infraction dispute reporting — eliminated 4 days of manual entry per quarter</li>
-              </ul>
-            </div>
-
-            {/* Zaveribazaar */}
-            <div className="border-l-2 border-border pl-6">
-              <div className="flex flex-wrap justify-between items-start mb-2">
-                <h3 className="text-xl font-semibold">Flutter Developer</h3>
-                <span className="text-text-muted text-sm">Jun 2021 – Jul 2022</span>
-              </div>
-              <p className="text-primary mb-1">Zaveribazaar.co.in</p>
-              <p className="text-sm text-text-muted mb-3">Mumbai, India</p>
-              <div className="flex flex-wrap gap-2 mb-3">
-                <Pill>Flutter</Pill><Pill>Firebase</Pill><Pill>TensorFlow</Pill><Pill>SQLite</Pill><Pill>REST APIs</Pill>
-              </div>
-              <ul className="space-y-2 text-text-muted text-sm">
-                <li>Led UI revamp using Flutter — 30% increase in daily active users</li>
-                <li>Integrated REST APIs to develop features such as Expense Manager and Recommendation System</li>
-                <li>Deployed on Android and iOS with CI/CD pipeline using Codemagic</li>
-              </ul>
-            </div>
-
-            {/* Bluepen */}
-            <div className="border-l-2 border-border pl-6">
-              <div className="flex flex-wrap justify-between items-start mb-2">
-                <h3 className="text-xl font-semibold">Software Developer</h3>
-                <span className="text-text-muted text-sm">Nov 2020 – May 2021</span>
-              </div>
-              <p className="text-primary mb-1">Bluepen.co.in</p>
-              <p className="text-sm text-text-muted mb-3">Mumbai, India</p>
-              <div className="flex flex-wrap gap-2 mb-3">
-                <Pill>Flutter</Pill><Pill>Flask</Pill><Pill>MongoDB</Pill><Pill>TensorFlow</Pill><Pill>Razorpay</Pill>
-              </div>
-              <ul className="space-y-2 text-text-muted text-sm">
-                <li>End-to-end UI development with TensorFlow-powered real-time object detection</li>
-                <li>Created microservice-based backend using Flask with MongoDB</li>
-                <li>Integrated Razorpay payments gateway to enable a subscription model</li>
-              </ul>
-            </div>
+            ))}
           </div>
         </div>
       </Section>
 
       {/* ═══════════ PROJECTS ═══════════ */}
-      <Section id="projects" className="py-20 px-6 bg-surface">
-        <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl font-bold mb-8">Featured Projects</h2>
+      <Section id="projects" className="bg-dots py-20 px-6 bg-surface overflow-hidden">
+        <div className="relative z-10 max-w-5xl mx-auto">
+          <h2 className="text-3xl font-bold mb-8 font-heading">Featured Projects</h2>
+
+          {/* Tag filter */}
+          <div className="flex flex-wrap gap-2 mb-8">
+            {PROJECT_TAGS.map((tag) => (
+              <button
+                key={tag}
+                onClick={() => setProjectFilter(tag)}
+                className={`px-4 py-1.5 text-sm rounded-full border transition-colors cursor-pointer ${
+                  projectFilter === tag
+                    ? 'bg-primary text-white border-primary'
+                    : 'border-border text-text-muted hover:border-primary/50'
+                }`}
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
 
           <div className="space-y-6">
-            {/* Job Search */}
-            <div className="bg-surface2 border border-border rounded-lg p-6 hover:border-primary/50 transition-colors">
-              <div className="flex flex-wrap justify-between items-start mb-2">
-                <h3 className="text-xl font-semibold">AI-Powered Job Search System</h3>
-                <a href="https://github.com/dhvl15/job-search" target="_blank" rel="noopener noreferrer" className="text-primary text-sm hover:underline">github.com/dhvl15/job-search</a>
-              </div>
-              <p className="text-sm text-text-muted mb-3">Personal AI-powered automation system for targeted, thoughtful job applications</p>
-              <div className="flex flex-wrap gap-2 mb-4">
-                <Pill>Claude Code</Pill><Pill>Python</Pill><Pill>Obsidian</Pill><Pill>Markdown Skills</Pill><Pill>Git</Pill><Pill>Dataview</Pill>
-              </div>
-              <ul className="space-y-2 text-text-muted text-sm">
-                <li>Architected a composable skill system with 8 modular markdown-based skills enabling focused context loading per task</li>
-                <li>Implemented structured scoring rubric with weighted dimensions, gate conditions, and role archetype classification</li>
-                <li>Built URL inbox capture pipeline with one-hotkey job URL queuing and batch evaluation processing</li>
-                <li>Integrated Kanban-based application tracking with analytics dashboards for pipeline health and skill gap analysis</li>
-              </ul>
-            </div>
-
-            {/* OpenClaw */}
-            <div className="bg-surface2 border border-border rounded-lg p-6 hover:border-primary/50 transition-colors">
-              <div className="flex flex-wrap justify-between items-start mb-2">
-                <h3 className="text-xl font-semibold">OpenClaw Multi-Agent Pentesting Framework</h3>
-                <span className="text-primary text-sm">Research Prototype</span>
-              </div>
-              <p className="text-sm text-text-muted mb-3">Autonomous security testing framework with dynamic agent spawning and persistent memory</p>
-              <div className="flex flex-wrap gap-2 mb-4">
-                <Pill>Python</Pill><Pill>OpenClaw</Pill><Pill>Docker</Pill><Pill>Nmap</Pill><Pill>Nuclei</Pill><Pill>LLMs</Pill>
-              </div>
-              <ul className="space-y-2 text-text-muted text-sm">
-                <li>Designed and prototyped an autonomous multi-agent pentesting framework using OpenClaw</li>
-                <li>Implemented dynamic agent spawning with reusable skills and Docker sandboxing</li>
-                <li>Built persistent memory system for agent state management across security testing sessions</li>
-                <li>Integrated security tools (Nmap, Nuclei) for automated vulnerability scanning and assessment</li>
-              </ul>
-            </div>
-
-            {/* WordOut */}
-            <div className="bg-surface2 border border-border rounded-lg p-6 hover:border-primary/50 transition-colors">
-              <div className="flex flex-wrap justify-between items-start mb-2">
-                <h3 className="text-xl font-semibold">WordOut — LLM Career Platform</h3>
-                <span className="text-primary text-sm">Jan 2025 – Sep 2025</span>
-              </div>
-              <p className="text-sm text-text-muted mb-3">Platform helping candidates showcase communication skills through portfolio-style videos for hiring teams</p>
-              <div className="flex flex-wrap gap-2 mb-4">
-                <Pill>LLMs</Pill><Pill>Firebase</Pill><Pill>Multi-Agent</Pill><Pill>LangChain</Pill><Pill>Python</Pill>
-              </div>
-              <ul className="space-y-2 text-text-muted text-sm">
-                <li>Built LLM features for candidate communication skills showcase platform</li>
-                <li>Prototyped multi-agent resume & career-development workflows (profile ingest → critique → rewrite → video pitch prompts)</li>
-                <li>Hosted and orchestrated LLM services on Firebase with auth, data flow, and prompt/version management</li>
-                <li>Partnered in rapid product brainstorming and UX experiments</li>
-              </ul>
-            </div>
+            {[
+              { tag: 'AI/ML', title: 'AI-Powered Job Search System', link: 'https://github.com/dhvl15/job-search', linkLabel: 'github.com/dhvl15/job-search',
+                desc: 'Personal AI-powered automation system for targeted, thoughtful job applications',
+                pills: ['Claude Code', 'Python', 'Obsidian', 'Markdown Skills', 'Git', 'Dataview'],
+                bullets: [
+                  'Architected a composable skill system with 8 modular markdown-based skills enabling focused context loading per task',
+                  'Implemented structured scoring rubric with weighted dimensions, gate conditions, and role archetype classification',
+                  'Built URL inbox capture pipeline with one-hotkey job URL queuing and batch evaluation processing',
+                  'Integrated Kanban-based application tracking with analytics dashboards for pipeline health and skill gap analysis',
+                ],
+              },
+              { tag: 'Security', title: 'OpenClaw Multi-Agent Pentesting Framework', link: null, linkLabel: 'Research Prototype',
+                desc: 'Autonomous security testing framework with dynamic agent spawning and persistent memory',
+                pills: ['Python', 'OpenClaw', 'Docker', 'Nmap', 'Nuclei', 'LLMs'],
+                bullets: [
+                  'Designed and prototyped an autonomous multi-agent pentesting framework using OpenClaw',
+                  'Implemented dynamic agent spawning with reusable skills and Docker sandboxing',
+                  'Built persistent memory system for agent state management across security testing sessions',
+                  'Integrated security tools (Nmap, Nuclei) for automated vulnerability scanning and assessment',
+                ],
+              },
+              { tag: 'AI/ML', title: 'WordOut — LLM Career Platform', link: null, linkLabel: 'Jan 2025 – Sep 2025',
+                desc: 'Platform helping candidates showcase communication skills through portfolio-style videos for hiring teams',
+                pills: ['LLMs', 'Firebase', 'Multi-Agent', 'LangChain', 'Python'],
+                bullets: [
+                  'Built LLM features for candidate communication skills showcase platform',
+                  'Prototyped multi-agent resume & career-development workflows (profile ingest → critique → rewrite → video pitch prompts)',
+                  'Hosted and orchestrated LLM services on Firebase with auth, data flow, and prompt/version management',
+                  'Partnered in rapid product brainstorming and UX experiments',
+                ],
+              },
+            ]
+              .filter((p) => projectFilter === 'All' || p.tag === projectFilter)
+              .map((proj) => (
+                <motion.div
+                  key={proj.title}
+                  layout
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="bg-surface2 border border-border rounded-lg p-6 hover:border-primary/50 transition-colors"
+                >
+                  <div className="flex flex-wrap justify-between items-start mb-2">
+                    <h3 className="text-xl font-semibold">{proj.title}</h3>
+                    {proj.link
+                      ? <a href={proj.link} target="_blank" rel="noopener noreferrer" className="text-primary text-sm hover:underline">{proj.linkLabel}</a>
+                      : <span className="text-primary text-sm">{proj.linkLabel}</span>
+                    }
+                  </div>
+                  <p className="text-sm text-text-muted mb-3">{proj.desc}</p>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {proj.pills.map((p) => <Pill key={p}>{p}</Pill>)}
+                  </div>
+                  <ul className="space-y-2 text-text-muted text-sm">
+                    {proj.bullets.map((b, i) => <li key={i}>{b}</li>)}
+                  </ul>
+                </motion.div>
+              ))}
           </div>
         </div>
       </Section>
@@ -489,7 +556,7 @@ function App() {
       {/* ═══════════ EDUCATION ═══════════ */}
       <Section id="education" className="py-20 px-6">
         <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl font-bold mb-8">Education</h2>
+          <h2 className="text-3xl font-bold mb-8 font-heading">Education</h2>
 
           <div className="space-y-6">
             <div className="border-l-2 border-primary pl-6">
@@ -503,21 +570,22 @@ function App() {
               <p className="text-sm text-text-muted">Mumbai, India · Aug 2017 – Oct 2020</p>
             </div>
             <div className="border-l-2 border-border pl-6">
-              <h3 className="text-xl font-semibold">Diploma, Computer Engineering</h3>
-              <p className="text-primary">Shri Bhagubhai Mafatlal Polytechnic</p>
-              <p className="text-sm text-text-muted">Mumbai, India · Aug 2014 – Jun 2017</p>
+              <h3 className="text-xl font-semibold">Diploma in Computer Engineering</h3>
+              <p className="text-primary">Shri Bhahubhai Mafatlal Polytechnic</p>
+              <p className="text-sm text-text-muted">Mumbai, India · July 2014 – June 2017</p>
             </div>
           </div>
         </div>
       </Section>
 
       {/* ═══════════ CONFERENCES ═══════════ */}
-      <Section className="py-20 px-6 bg-surface">
+      <Section id="conferences" className="py-20 px-6 bg-surface">
         <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl font-bold mb-8">Conferences</h2>
+          <h2 className="text-3xl font-bold mb-8 font-heading">Conferences</h2>
 
           <div className="grid md:grid-cols-3 gap-6 mb-8">
-            <div className="p-5 border border-border rounded-lg bg-surface2 text-center">
+            <div className="p-5 border border-accent/30 rounded-lg bg-surface2 text-center relative">
+              <span className="absolute -top-2 right-3 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-accent text-background rounded-full">Upcoming</span>
               <h3 className="text-lg font-semibold">Web Summit 2026</h3>
               <p className="text-sm text-text-muted">Vancouver, BC</p>
             </div>
@@ -543,7 +611,7 @@ function App() {
       {/* ═══════════ LEARNING ═══════════ */}
       <Section className="py-20 px-6">
         <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl font-bold mb-8">Continuous Learning</h2>
+          <h2 className="text-3xl font-bold mb-8 font-heading">Continuous Learning</h2>
 
           <div className="grid md:grid-cols-2 gap-6">
             <div className="p-5 border border-border rounded-lg bg-surface">
@@ -551,7 +619,6 @@ function App() {
               <ul className="space-y-2 text-text-muted text-sm">
                 <li>5-Day Generative AI Intensive — completed</li>
                 <li>5-Day AI Agents Intensive — in progress</li>
-                <li>5-Day Intensive Vibe Coding — planned</li>
               </ul>
             </div>
             <div className="p-5 border border-border rounded-lg bg-surface">
@@ -584,7 +651,7 @@ function App() {
       {/* ═══════════ GITHUB ACTIVITY ═══════════ */}
       <Section className="py-20 px-6 bg-surface">
         <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl font-bold mb-8">GitHub Activity</h2>
+          <h2 className="text-3xl font-bold mb-8 font-heading">GitHub Activity</h2>
           <div className="overflow-x-auto">
             <GitHubCalendar
               username="dhvl15"
@@ -598,28 +665,27 @@ function App() {
       </Section>
 
       {/* ═══════════ CONTACT ═══════════ */}
-      <Section id="contact" className="py-20 px-6">
-        <div className="max-w-5xl mx-auto text-center">
-          <h2 className="text-3xl font-bold mb-4">Let's Connect</h2>
+      <Section id="contact" className="bg-glow py-20 px-6 overflow-hidden">
+        <div className="relative z-10 max-w-5xl mx-auto text-center">
+          <h2 className="text-3xl font-bold mb-4 font-heading">Let's Connect</h2>
           <p className="text-text-muted mb-8 max-w-xl mx-auto">
             I'm open to opportunities in Data Engineering, Data Science, and AI Engineering roles.
             Based in Vancouver, BC — open to remote, hybrid, and on-site.
           </p>
-          <div className="flex flex-wrap justify-center gap-4 mb-6">
-            <a href="mailto:dhaval.jariwala98@gmail.com" className="px-6 py-3 bg-primary hover:bg-primary-hover text-white font-medium rounded-lg transition-colors">
-              Email Me
+          <div className="flex flex-wrap justify-center items-center gap-5 mb-6">
+            <a href="mailto:dhaval.jariwala98@gmail.com" aria-label="Email" className="p-3 rounded-full border border-border bg-surface hover:bg-surface2 hover:border-primary/50 transition-colors">
+              <svg className="w-5 h-5 text-text-muted" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" /></svg>
             </a>
-            <button onClick={() => setResumeOpen(true)} className="px-6 py-3 bg-surface border border-border rounded-lg hover:bg-surface2 hover:border-accent3/50 transition-colors cursor-pointer">
+            <a href="https://github.com/dhvl15" target="_blank" rel="noopener noreferrer" aria-label="GitHub" className="p-3 rounded-full border border-border bg-surface hover:bg-surface2 hover:border-primary/50 transition-colors">
+              <svg className="w-5 h-5 text-text-muted" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" /></svg>
+            </a>
+            <a href="https://www.linkedin.com/in/dhavaljariwala15/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="p-3 rounded-full border border-border bg-surface hover:bg-surface2 hover:border-primary/50 transition-colors">
+              <svg className="w-5 h-5 text-text-muted" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" /></svg>
+            </a>
+            <button onClick={() => setResumeOpen(true)} className="px-6 py-3 bg-surface border border-primary/30 rounded-lg hover:bg-surface2 hover:border-primary/50 text-primary transition-colors cursor-pointer">
               Resume
             </button>
-            <a href="https://github.com/dhvl15" target="_blank" rel="noopener noreferrer" className="px-6 py-3 bg-surface border border-border rounded-lg hover:bg-surface2 transition-colors">
-              GitHub
-            </a>
-            <a href="https://www.linkedin.com/in/dhavaljariwala15/" target="_blank" rel="noopener noreferrer" className="px-6 py-3 bg-surface border border-border rounded-lg hover:bg-surface2 transition-colors">
-              LinkedIn
-            </a>
           </div>
-          <p className="text-sm text-text-muted">dhaval.jariwala98@gmail.com</p>
         </div>
       </Section>
 
@@ -629,7 +695,7 @@ function App() {
       {/* Footer */}
       <footer className="py-8 px-6 border-t border-border">
         <div className="max-w-5xl mx-auto text-center text-sm text-text-muted">
-          <p>&copy; 2025 Dhaval Jariwala. Built with React, Tailwind CSS & Framer Motion.</p>
+          <p>&copy; {new Date().getFullYear()} Dhaval Jariwala. Built with React, Tailwind CSS & Framer Motion.</p>
         </div>
       </footer>
     </div>
